@@ -39,29 +39,37 @@ urlinfo_t *parse_url(char *url)
   */
 
  //check if no http:// or https:// in the URL
-if(strstr(url, "https://")){
-  hostname = strdup(url + 8);
-}  else if (strstr(url, "http://")){
-  hostname = strdup(url + 7);
-}  else {
-  hostname = strdup(url);
-}
+  if(strstr(url, "https://")){
+    hostname = strdup(url + 8);
+  }  else if (strstr(url, "http://")){
+    hostname = strdup(url + 7);
+  }  else {
+    hostname = strdup(url);
+  }
 
  //Use strchr to find the first slash in the URL (this is assuming there is no http:// or https:// in the URL)
  //Set the path pointer to 1 character after the spot returned by strchr.
  //Overwrite the slash with a '\0' so that we are no longer considering anything after the slash.
 
-  char *slash = strchr(hostname, "/");
-  path = slash + 1;
-  *slash = "\0";
+  char *slash = strchr(hostname, '/');
+  if(slash){
+    path = slash + 1;
+    *slash = '\0';
+  }else{
+    path = "/";
+  }
 
 //Use strchr to find the first colon in the URL.
 //Set the port pointer to 1 character after the spot returned by strchr.
 //Overwrite the colon with a '\0' so that we are just left with the hostname.
   
-  char *colon = strchr(hostname, ":");
-  port = colon + 1;
-  *colon = "\0";
+  char *colon = strchr(hostname, ':');
+  if(colon){
+    port = colon + 1;
+    *colon = '\0';
+  }else{
+    port = "80";
+  }
 
   urlinfo->hostname = hostname;
   urlinfo->port = port;
@@ -86,17 +94,13 @@ int send_request(int fd, char *hostname, char *port, char *path)
   char request[max_request_size];
   int rv;
 
-  int request_length = sprintf(request,
-    "GET /%s HTTP/1.1\n"
-    "Host: %s:%s\n"
-    "Connection: close\n\n",
-    path, hostname, port);
+  int request_length = sprintf(request, "GET /%s HTTP/1.1\nHost: %s:%s\nConnection: close\n\n", path, hostname, port);
+  
+  rv = send(fd, request, request_length, 0);
 
   if (rv < 0){
     perror("send");
   }
-  rv = send(fd, request, request_length, 0);
-
   return 0;
 }
 
@@ -124,7 +128,7 @@ int main(int argc, char *argv[])
   send_request(sockfd, urlinfo->hostname, urlinfo->port, urlinfo->path);
 
   while((numbytes = recv(sockfd, buf, BUFSIZE -1, 0)) > 0){
-    printf("\nResponse: %s\n", buf);
+    printf("%s\n", buf);
   }
 
   free(urlinfo);
